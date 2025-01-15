@@ -197,6 +197,17 @@ EOF
 echo "检查系统软件源..."
 update_sources
 
+# 添加在环境检查部分之前
+echo "设置系统时区为上海..."
+if [ -f /usr/share/zoneinfo/Asia/Shanghai ]; then
+    ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+    echo "Asia/Shanghai" > /etc/timezone
+    dpkg-reconfigure -f noninteractive tzdata
+    echo "时区已设置为上海"
+else
+    echo "警告：无法找到上海时区文件"
+fi
+
 # 修改 Python 版本检测函数
 check_python_version() {
     local current_version=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
@@ -371,14 +382,33 @@ EOF
     return 0
 }
 
+install_fail2ban_deps() {
+    echo "安装fail2ban依赖..."
+    apt update
+    # 安装python3-systemd包以解决systemd后端问题
+    apt install -y python3-systemd || {
+        echo "python3-systemd安装失败"
+        return 1
+    }
+    # 确保fail2ban完全卸载后重新安装
+    apt remove --purge -y fail2ban
+    apt autoremove -y
+    apt install -y fail2ban || {
+        echo "fail2ban安装失败"
+        return 1
+    }
+    return 0
+}
+
 # Fail2ban 安装和配置部分
 echo "检查 fail2ban 状态..."
 
 # 先检查是否已安装
-if ! command -v fail2ban-client &>/dev/null; then
-    echo "fail2ban 未安装，正在安装..."
-    apt install -y fail2ban || {
-        echo "fail2ban 安装失败"
+if ! command -v fail2ban-client &>/dev/null || \
+   ! python3 -c "import systemd" 2>/dev/null; then
+    echo "fail2ban 未安装或缺少必要依赖，开始安装..."
+    install_fail2ban_deps || {
+        echo "fail2ban及其依赖安装失败"
         exit 1
     }
 fi
