@@ -297,46 +297,49 @@ fi
 apt upgrade -y
 apt install -y fail2ban python3-virtualenv git curl netstat-nat
 
-# Fail2ban 配置
-echo "检查 fail2ban 配置..."
-if ! check_installed "fail2ban" "systemctl is-active --quiet fail2ban"; then
+# 添加 fail2ban 配置函数
+configure_fail2ban() {
     echo "====开始配置 fail2ban===="
-
-    # 备份配置
-    echo "1. 备份 fail2ban 配置..."
+    
+    # 如果存在现有配置,显示配置摘要
     if [ -f /etc/fail2ban/jail.local ]; then
+        echo "当前 fail2ban 配置摘要:"
+        echo "------------------------"
+        grep -E "^(bantime|findtime|maxretry|action)" /etc/fail2ban/jail.local
+        echo "------------------------"
+    fi
+
+    # 备份现有配置
+    if [ -f /etc/fail2ban/jail.local ]; then
+        echo "1. 备份 fail2ban 配置..."
         backup_with_timestamp "/etc/fail2ban/jail.local" 3
     fi
 
-    # 检测系统类型并写入相应配置
-    echo "2. 检测系统类型并写入配置..."
-    if systemctl --version &>/dev/null; then
-        echo "检测到 systemd 系统，使用 systemd backend"
-        cat > /etc/fail2ban/jail.local <<'EOF'
+    # 检测系统并写入相应配置
+    echo "2. 写入新配置..."
+    echo "新配置将包含:"
+    echo "- 禁止时长: 86400秒(24小时)"
+    echo "- 检测时间窗口: 1800秒(30分钟)"
+    echo "- 最大重试次数: 3次"
+    echo "- 启用 SSH 防护"
+    
+    if ! cat > /etc/fail2ban/jail.local <<'EOF'
 [DEFAULT]
+ignoreip = 127.0.0.1/8 ::1
 bantime = 86400
-findtime = 300
 maxretry = 3
+findtime = 1800
 action = %(action_)s
 
 [sshd]
-enabled = true
-backend = systemd
+backend=systemd
+enabled=true
+filter=sshd
 logpath = /var/log/auth.log
 EOF
-    else
-        echo "使用默认 backend"
-        cat > /etc/fail2ban/jail.local <<'EOF'
-[DEFAULT]
-bantime = 86400
-findtime = 300
-maxretry = 3
-action = %(action_)s
-
-[sshd]
-enabled = true
-logpath = /var/log/auth.log
-EOF
+    then
+        echo "错误：无法写入 fail2ban 配置文件"
+        return 1
     fi
     echo "配置文件写入成功"
 
@@ -344,7 +347,7 @@ EOF
     echo "3. 测试配置文件..."
     if ! fail2ban-client -t; then
         echo "错误：fail2ban 配置测试失败"
-        exit 1
+        return 1
     fi
     echo "配置文件测试通过"
 
@@ -353,7 +356,7 @@ EOF
     if ! systemctl restart fail2ban; then
         echo "错误：fail2ban 服务重启失败"
         journalctl -u fail2ban --no-pager -n 50
-        exit 1
+        return 1
     fi
 
     # 检查服务状态
@@ -361,12 +364,33 @@ EOF
     if ! systemctl is-active --quiet fail2ban; then
         echo "错误：fail2ban 服务未能正常启动"
         systemctl status fail2ban
-        exit 1
+        return 1
     fi
 
     echo "====fail2ban 配置完成===="
+    return 0
+}
+
+# Fail2ban 配置主逻辑
+echo "检查 fail2ban 配置..."
+if ! check_installed "fail2ban" "systemctl is-active --quiet fail2ban"; then
+    configure_fail2ban || exit 1
 else
-    echo "fail2ban 已安装，跳过配置"
+    echo "fail2ban 已安装。"
+    echo "当前配置位置: /etc/fail2ban/jail.local"
+    if [ -f /etc/fail2ban/jail.local ]; then
+        echo "当前配置摘要:"
+        echo "------------------------"
+        grep -E "^(bantime|findtime|maxretry|action)" /etc/fail2ban/jail.local
+        echo "------------------------"
+    fi
+    
+    read -r -p "是否覆盖现有配置？(y/N): " overwrite
+    if [[ "$overwrite" =~ ^([yY])+$ ]]; then
+        configure_fail2ban || exit 1
+    else
+        echo "保持现有配置。"
+    fi
 fi
 
 # 日志清理脚本配置
