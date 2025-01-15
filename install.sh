@@ -333,6 +333,13 @@ configure_fail2ban() {
     echo "- 检测时间窗口: 1800秒(30分钟)"
     echo "- 最大重试次数: 3次"
     echo "- 启用 SSH 防护"
+
+    # 检测最佳后端
+    if [ -d /run/systemd/system ]; then
+        BACKEND="systemd"
+    else
+        BACKEND="auto"
+    fi
     
     if ! cat > /etc/fail2ban/jail.local <<'EOF'
 [DEFAULT]
@@ -340,13 +347,15 @@ ignoreip = 127.0.0.1/8 ::1
 bantime = 86400
 maxretry = 3
 findtime = 1800
+backend = ${BACKEND}
 action = %(action_)s
 
 [sshd]
-backend=systemd
-enabled=true
-filter=sshd
+enabled = true
+port = ssh
+filter = sshd
 logpath = /var/log/auth.log
+maxretry = 3
 EOF
     then
         echo "错误：无法写入 fail2ban 配置文件"
