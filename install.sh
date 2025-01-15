@@ -347,7 +347,7 @@ ignoreip = 127.0.0.1/8 ::1
 bantime = 86400
 maxretry = 3
 findtime = 1800
-backend = "$BACKEND"
+backend = $BACKEND
 action = %(action_)s
 
 [sshd]
