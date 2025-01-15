@@ -901,7 +901,7 @@ FINAL_SSH_PORT=$(get_current_ssh_port)
 echo "当前 SSH 配置："
 print_info "端口: $FINAL_SSH_PORT"
 print_info "密码认证: $(grep "^PasswordAuthentication" /etc/ssh/sshd_config | awk '{print $2}' || echo "yes")" 
-print_info "密钥认证: $(grep "^PubkeyAuthentication" /etc/ssh/sshd_config | awk '{print $2}' || echo "yes")"
+print_info "密钥认证: $(grep -E "^[[:space:]]*PubkeyAuthentication[[:space:]]+" /etc/ssh/sshd_config | awk '{print $2}' || grep -E "^#[[:space:]]*PubkeyAuthentication[[:space:]]+" /etc/ssh/sshd_config | awk '{print $2}' || echo "yes")"
 # Check both root and original user's SSH keys
 ORIGINAL_USER=$(who am i | awk '{print $1}')
 if [ -f "/root/.ssh/authorized_keys" ]; then
