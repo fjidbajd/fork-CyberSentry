@@ -30,7 +30,7 @@ apt install -y net-tools || {
 # 函数定义
 check_command() {
     command -v "$1" >/dev/null 2>&1 || {
-        echo "错误：未找到命令 $1"
+        echo "错误：未找到命 $1"
         exit 1
     }
 }
@@ -371,26 +371,39 @@ EOF
     return 0
 }
 
-# Fail2ban 配置主逻辑
-echo "检查 fail2ban 配置..."
-if ! check_installed "fail2ban" "systemctl is-active --quiet fail2ban"; then
-    configure_fail2ban || exit 1
-else
-    echo "fail2ban 已安装。"
-    echo "当前配置位置: /etc/fail2ban/jail.local"
+# Fail2ban 安装和配置部分
+echo "检查 fail2ban 状态..."
+
+# 先检查是否已安装
+if ! command -v fail2ban-client &>/dev/null; then
+    echo "fail2ban 未安装，正在安装..."
+    apt install -y fail2ban || {
+        echo "fail2ban 安装失败"
+        exit 1
+    }
+fi
+
+# 检查服务状态并提供配置选项
+if systemctl is-active --quiet fail2ban; then
+    echo "fail2ban 服务正在运行"
     if [ -f /etc/fail2ban/jail.local ]; then
-        echo "当前配置摘要:"
+        echo "当前 fail2ban 配置摘要:"
         echo "------------------------"
-        grep -E "^(bantime|findtime|maxretry|action)" /etc/fail2ban/jail.local
+        grep -E "^(bantime|findtime|maxretry|action)" /etc/fail2ban/jail.local || echo "未找到关键配置"
         echo "------------------------"
+    else
+        echo "未检测到自定义配置文件"
     fi
     
-    read -r -p "是否覆盖现有配置？(y/N): " overwrite
-    if [[ "$overwrite" =~ ^([yY])+$ ]]; then
+    read -r -p "是否重新配置 fail2ban？(y/N): " reconfigure
+    if [[ "$reconfigure" =~ ^([yY])+$ ]]; then
         configure_fail2ban || exit 1
     else
-        echo "保持现有配置。"
+        echo "保持当前配置"
     fi
+else
+    echo "fail2ban 服务未运行，开始配置..."
+    configure_fail2ban || exit 1
 fi
 
 # 日志清理脚本配置
