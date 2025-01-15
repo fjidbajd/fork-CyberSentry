@@ -308,9 +308,25 @@ if ! check_installed "fail2ban" "systemctl is-active --quiet fail2ban"; then
         backup_with_timestamp "/etc/fail2ban/jail.local" 3
     fi
 
-    # 写入新配置
-    echo "2. 写入新配置..."
-    if ! cat > /etc/fail2ban/jail.local <<'EOF'
+    # 检测系统类型并写入相应配置
+    echo "2. 检测系统类型并写入配置..."
+    if systemctl --version &>/dev/null; then
+        echo "检测到 systemd 系统，使用 systemd backend"
+        cat > /etc/fail2ban/jail.local <<'EOF'
+[DEFAULT]
+bantime = 86400
+findtime = 300
+maxretry = 3
+action = %(action_)s
+
+[sshd]
+enabled = true
+backend = systemd
+logpath = /var/log/auth.log
+EOF
+    else
+        echo "使用默认 backend"
+        cat > /etc/fail2ban/jail.local <<'EOF'
 [DEFAULT]
 bantime = 86400
 findtime = 300
@@ -321,9 +337,6 @@ action = %(action_)s
 enabled = true
 logpath = /var/log/auth.log
 EOF
-    then
-        echo "错误：无法写入 fail2ban 配置文件"
-        exit 1
     fi
     echo "配置文件写入成功"
 
