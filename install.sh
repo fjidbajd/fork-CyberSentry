@@ -341,7 +341,7 @@ configure_fail2ban() {
         BACKEND="auto"
     fi
     
-    if ! cat > /etc/fail2ban/jail.local <<'EOF'
+    if ! cat > /etc/fail2ban/jail.local <<"EOF"
 [DEFAULT]
 ignoreip = 127.0.0.1/8 ::1
 bantime = 86400
