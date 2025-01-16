@@ -599,7 +599,7 @@ if [ "$COWRIE_INSTALLED" = "false" ]; then
         pip install --upgrade pip
         pip install -r requirements.txt
         cp etc/cowrie.cfg.dist etc/cowrie.cfg
-        sed -i 's/hostname = svr04/hostname = fake-ssh-server/' etc/cowrie.cfg
+        sed -i 's/hostname = svr04/hostname = ubuntu2204-prod/' etc/cowrie.cfg
         sed -i 's/^#listen_port=2222/listen_port=2222/' etc/cowrie.cfg
         sed -i 's/^#download_limit_size=10485760/download_limit_size=1048576/' etc/cowrie.cfg
         mkdir -p var/log/cowrie
