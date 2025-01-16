@@ -482,7 +482,8 @@ echo "检查 fail2ban 状态..."
 
 # 先检查是否已安装
 if ! command -v fail2ban-client &>/dev/null || \
-   ! python3 -c "import systemd" 2>/dev/null; then
+   ! python3 -c "import systemd.journal" 2>/dev/null; then
+    echo "fail2ban 或必要的 Python 模块未安装，开始安装..."
     echo "fail2ban 未安装或缺少必要依赖，开始安装..."
     install_fail2ban_deps || {
         echo "fail2ban及其依赖安装失败"
