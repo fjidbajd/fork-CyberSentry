@@ -239,18 +239,18 @@ upgrade_python() {
                 "10")
                     echo "deb http://deb.debian.org/debian buster-backports main" > /etc/apt/sources.list.d/backports.list
                     apt update
-                    apt -t buster-backports install -y python3.9 python3.9-dev python3.9-venv
+                    apt -t buster-backports install -y python3.9 python3.9-dev python3.9-venv python3-pip
                     ;;
                 "11"|"12")
                     apt update
-                    apt install -y python3.9 python3.9-dev python3.9-venv
+                    apt install -y python3.9 python3.9-dev python3.9-venv python3-pip
                     ;;
             esac
             ;;
         "ubuntu")
             add-apt-repository -y ppa:deadsnakes/ppa
             apt update
-            apt install -y python3.9 python3.9-dev python3.9-venv
+            apt install -y python3.9 python3.9-dev python3.9-venv python3-pip
             ;;
     esac
     
@@ -266,6 +266,16 @@ fix_python_deps() {
         apt-get remove --purge -y python3-apt
         apt-get install -y python3-apt
     fi
+    
+    # 确保 pip3 正确安装
+    if ! command -v pip3 >/dev/null; then
+        echo "安装 pip3..."
+        apt install -y python3-pip
+    fi
+    
+    # 升级 pip
+    echo "升级 pip..."
+    python3 -m pip install --upgrade pip
 }
 
 # 在环境检查后添加 Python 版本检查
@@ -280,6 +290,19 @@ if ! check_python_version; then
     echo "Python 已成功升级到 3.9+"
     fix_python_deps
 fi
+
+# 检查并确认 pip3 安装
+if ! command -v pip3 >/dev/null; then
+    echo "pip3 未安装，正在安装..."
+    apt install -y python3-pip
+    python3 -m pip install --upgrade pip
+fi
+
+# 显示 Python 和 pip 版本信息
+echo "Python 版本："
+python3 --version
+echo "pip3 版本："
+pip3 --version
 
 # 检查 netstat 命令
 if ! command -v netstat &> /dev/null; then
@@ -392,19 +415,16 @@ EOF
 
 install_fail2ban_deps() {
     echo "安装fail2ban依赖..."
-    apt update
-    # 安装python3-systemd包以解决systemd后端问题
-    apt install -y python3-systemd || {
-        echo "python3-systemd安装失败"
-        return 1
-    }
-    # 确保fail2ban完全卸载后重新安装
-    apt remove --purge -y fail2ban
+    # 完全卸载fail2ban及其依赖
+    apt remove --purge -y fail2ban python3-fail2ban
     apt autoremove -y
-    apt install -y fail2ban || {
+    
+    # 使用pip3安装fail2ban
+    pip3 install fail2ban || {
         echo "fail2ban安装失败"
         return 1
     }
+    
     return 0
 }
 
