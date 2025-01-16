@@ -415,15 +415,64 @@ EOF
 
 install_fail2ban_deps() {
     echo "安装fail2ban依赖..."
-    # 完全卸载fail2ban及其依赖
-    apt remove --purge -y fail2ban python3-fail2ban
+    apt update
+    # 完全移除现有fail2ban
+    apt remove --purge -y python3-systemd fail2ban
     apt autoremove -y
     
-    # 使用pip3安装fail2ban
-    pip3 install fail2ban || {
-        echo "fail2ban安装失败"
+    # 安装构建依赖
+    apt install -y git python3-pip python3-dev build-essential
+    
+    # 使用pip3安装systemd
+    pip3 install systemd-python || {
+        echo "systemd-python安装失败"
         return 1
     }
+    
+    # 从GitHub克隆fail2ban 1.1.1.dev1版本
+    cd /tmp
+    git clone https://github.com/fail2ban/fail2ban.git
+    cd fail2ban
+    git checkout 1.1.1.dev1
+    
+    # 安装fail2ban
+    python3 setup.py install || {
+        echo "fail2ban 1.1.1.dev1安装失败"
+        return 1
+    }
+    
+    # 创建必要的目录和文件
+    mkdir -p /etc/fail2ban
+    mkdir -p /var/run/fail2ban
+    
+    # 复制默认配置文件
+    cp /tmp/fail2ban/config/jail.conf /etc/fail2ban/jail.conf
+    cp /tmp/fail2ban/config/fail2ban.conf /etc/fail2ban/fail2ban.conf
+    
+    # 创建systemd服务文件
+    cat > /lib/systemd/system/fail2ban.service <<EOF
+[Unit]
+Description=Fail2Ban Service
+Documentation=man:fail2ban(1)
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/fail2ban-server -f -x -b start
+ExecStop=/usr/local/bin/fail2ban-client stop
+ExecReload=/usr/local/bin/fail2ban-client reload
+PIDFile=/var/run/fail2ban/fail2ban.pid
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    # 重新加载systemd
+    systemctl daemon-reload
+    
+    # 清理临时文件
+    rm -rf /tmp/fail2ban
     
     return 0
 }
