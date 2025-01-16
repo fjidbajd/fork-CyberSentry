@@ -444,7 +444,7 @@ install_fail2ban_deps() {
     rm -rf /var/lib/fail2ban
     
     # 安装构建依赖
-    apt install -y git python3-pip python3-dev build-essential
+    apt install -y git python3-pip python3-dev build-essential pkg-config libsystemd-dev
     
     # 使用pip3安装systemd
     pip3 install systemd-python || {
