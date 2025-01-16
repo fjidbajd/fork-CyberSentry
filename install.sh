@@ -428,16 +428,15 @@ install_fail2ban_deps() {
         echo "systemd-python安装失败"
         return 1
     }
-    
-    # 从GitHub克隆fail2ban 1.1.1.dev1版本
+
+    # 从GitHub克隆最新版本fail2ban
     cd /tmp
     git clone https://github.com/fail2ban/fail2ban.git
     cd fail2ban
-    git checkout 1.1.1.dev1
     
     # 安装fail2ban
     python3 setup.py install || {
-        echo "fail2ban 1.1.1.dev1安装失败"
+        echo "fail2ban安装失败"
         return 1
     }
     
