@@ -416,9 +416,32 @@ EOF
 install_fail2ban_deps() {
     echo "安装fail2ban依赖..."
     apt update
+
+    # 如果fail2ban服务在运行，先停止它
+    if systemctl is-active --quiet fail2ban; then
+        echo "停止fail2ban服务..."
+        systemctl stop fail2ban
+        systemctl disable fail2ban
+    fi
+
+    # 检查并删除可能存在的运行时文件
+    if [ -f /var/run/fail2ban/fail2ban.pid ]; then
+        rm -f /var/run/fail2ban/fail2ban.pid
+    fi
+
+    # 备份配置文件
+    if [ -f /etc/fail2ban/jail.local ]; then
+        echo "备份现有配置..."
+        cp /etc/fail2ban/jail.local /etc/fail2ban/jail.local.backup
+    fi
+
     # 完全移除现有fail2ban
+    echo "移除现有fail2ban..."
     apt remove --purge -y python3-systemd fail2ban
     apt autoremove -y
+
+    # 清理残留文件
+    rm -rf /var/lib/fail2ban
     
     # 安装构建依赖
     apt install -y git python3-pip python3-dev build-essential
