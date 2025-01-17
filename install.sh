@@ -566,7 +566,7 @@ EOF
 # 重载并启动服务
 systemctl daemon-reload
 systemctl enable cowrie
-systemctl restart cowrie
+systemctl start cowrie
 
 # SSH 安全配置
 echo "检查 SSH 配置..."
@@ -714,7 +714,7 @@ EOF
             fi
 
             echo "应用新的 SSH 配置..."
-            systemctl restart sshd
+            systemctl restart ssh
 
             # 验证配置
             echo "验证 SSH 配置..."
@@ -730,7 +730,7 @@ EOF
                 if [[ ! $CONTINUE =~ ^[Yy]$ ]]; then
                     echo "恢复原始配置..."
                     mv /etc/ssh/sshd_config.bak.$(date +%s) /etc/ssh/sshd_config
-                    systemctl restart sshd
+                    systemctl restart ssh
                     exit 1
                 fi
             fi
@@ -846,7 +846,7 @@ EOF
     fi
 
     if [ "$NEW_SSH_PORT" != "$CURRENT_SSH_PORT" ] || [ "$AUTH_CHOICE" != "0" ]; then
-        systemctl restart sshd
+        systemctl restart ssh
     fi
 
     echo "SSH 配置状态："
