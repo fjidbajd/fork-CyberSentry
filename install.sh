@@ -239,18 +239,18 @@ upgrade_python() {
                 "10")
                     echo "deb http://deb.debian.org/debian buster-backports main" > /etc/apt/sources.list.d/backports.list
                     apt update
-                    apt -t buster-backports install -y python3.9 python3.9-dev python3.9-venv python3-pip
+                    apt -t buster-backports install -y python3.9 python3.9-dev python3.9-venv
                     ;;
                 "11"|"12")
                     apt update
-                    apt install -y python3.9 python3.9-dev python3.9-venv python3-pip
+                    apt install -y python3.9 python3.9-dev python3.9-venv
                     ;;
             esac
             ;;
         "ubuntu")
             add-apt-repository -y ppa:deadsnakes/ppa
             apt update
-            apt install -y python3.9 python3.9-dev python3.9-venv python3-pip
+            apt install -y python3.9 python3.9-dev python3.9-venv
             ;;
     esac
     
@@ -266,16 +266,6 @@ fix_python_deps() {
         apt-get remove --purge -y python3-apt
         apt-get install -y python3-apt
     fi
-    
-    # 确保 pip3 正确安装
-    if ! command -v pip3 >/dev/null; then
-        echo "安装 pip3..."
-        apt install -y python3-pip
-    fi
-    
-    # 升级 pip
-    echo "升级 pip..."
-    python3 -m pip install --upgrade pip
 }
 
 # 在环境检查后添加 Python 版本检查
@@ -290,19 +280,6 @@ if ! check_python_version; then
     echo "Python 已成功升级到 3.9+"
     fix_python_deps
 fi
-
-# 检查并确认 pip3 安装
-if ! command -v pip3 >/dev/null; then
-    echo "pip3 未安装，正在安装..."
-    apt install -y python3-pip
-    python3 -m pip install --upgrade pip
-fi
-
-# 显示 Python 和 pip 版本信息
-echo "Python 版本："
-python3 --version
-echo "pip3 版本："
-pip3 --version
 
 # 检查 netstat 命令
 if ! command -v netstat &> /dev/null; then
@@ -416,86 +393,18 @@ EOF
 install_fail2ban_deps() {
     echo "安装fail2ban依赖..."
     apt update
-
-    # 如果fail2ban服务在运行，先停止它
-    if systemctl is-active --quiet fail2ban; then
-        echo "停止fail2ban服务..."
-        systemctl stop fail2ban
-        systemctl disable fail2ban
-    fi
-
-    # 检查并删除可能存在的运行时文件
-    if [ -f /var/run/fail2ban/fail2ban.pid ]; then
-        rm -f /var/run/fail2ban/fail2ban.pid
-    fi
-
-    # 备份配置文件
-    if [ -f /etc/fail2ban/jail.local ]; then
-        echo "备份现有配置..."
-        cp /etc/fail2ban/jail.local /etc/fail2ban/jail.local.backup
-    fi
-
-    # 完全移除现有fail2ban
-    echo "移除现有fail2ban..."
-    apt remove --purge -y python3-systemd fail2ban
-    apt autoremove -y
-
-    # 清理残留文件
-    rm -rf /var/lib/fail2ban
-    
-    # 安装构建依赖
-    apt install -y git python3-pip python3-dev build-essential pkg-config libsystemd-dev
-    
-    # 使用pip3安装systemd
-    pip3 install systemd-python || {
-        echo "systemd-python安装失败"
+    # 安装python3-systemd包以解决systemd后端问题
+    apt install -y python3-systemd || {
+        echo "python3-systemd安装失败"
         return 1
     }
-
-    # 从GitHub克隆最新版本fail2ban
-    cd /tmp
-    git clone https://github.com/fail2ban/fail2ban.git
-    cd fail2ban
-    
-    # 安装fail2ban
-    python3 setup.py install || {
+    # 确保fail2ban完全卸载后重新安装
+    apt remove --purge -y fail2ban
+    apt autoremove -y
+    apt install -y fail2ban || {
         echo "fail2ban安装失败"
         return 1
     }
-    
-    # 创建必要的目录和文件
-    mkdir -p /etc/fail2ban
-    mkdir -p /var/run/fail2ban
-    
-    # 复制默认配置文件
-    cp /tmp/fail2ban/config/jail.conf /etc/fail2ban/jail.conf
-    cp /tmp/fail2ban/config/fail2ban.conf /etc/fail2ban/fail2ban.conf
-    
-    # 创建systemd服务文件
-    cat > /lib/systemd/system/fail2ban.service <<EOF
-[Unit]
-Description=Fail2Ban Service
-Documentation=man:fail2ban(1)
-After=network.target
-
-[Service]
-Type=simple
-ExecStart=/usr/local/bin/fail2ban-server -f -x -b start
-ExecStop=/usr/local/bin/fail2ban-client stop
-ExecReload=/usr/local/bin/fail2ban-client reload
-PIDFile=/var/run/fail2ban/fail2ban.pid
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-    # 重新加载systemd
-    systemctl daemon-reload
-    
-    # 清理临时文件
-    rm -rf /tmp/fail2ban
-    
     return 0
 }
 
@@ -504,8 +413,7 @@ echo "检查 fail2ban 状态..."
 
 # 先检查是否已安装
 if ! command -v fail2ban-client &>/dev/null || \
-   ! python3 -c "import systemd.journal" 2>/dev/null; then
-    echo "fail2ban 或必要的 Python 模块未安装，开始安装..."
+   ! python3 -c "import systemd" 2>/dev/null; then
     echo "fail2ban 未安装或缺少必要依赖，开始安装..."
     install_fail2ban_deps || {
         echo "fail2ban及其依赖安装失败"
@@ -577,7 +485,7 @@ if [ "$COWRIE_INSTALLED" = "false" ]; then
     # 创建 Cowrie 用户
     echo "创建 Cowrie 用户..."
     if ! id cowrie &>/dev/null; then
-        useradd -r -d "$COWRIE_INSTALL_DIR" -s /bin/bash cowrie || {
+        useradd -r -s /bin/bash cowrie || {
             echo "创建 cowrie 用户失败"
             exit 1
         }
@@ -589,24 +497,29 @@ if [ "$COWRIE_INSTALLED" = "false" ]; then
     mkdir -p "$COWRIE_INSTALL_DIR"
     chown cowrie:cowrie "$COWRIE_INSTALL_DIR"
 
-    # 以 cowrie 用户身份执行安装
-    echo "执行安装..."
-    runuser -l cowrie -c "
-        cd $COWRIE_INSTALL_DIR
-        git clone https://github.com/cowrie/cowrie.git .
-        python3 -m virtualenv cowrie-env
-        source cowrie-env/bin/activate
-        pip install --upgrade pip
-        pip install -r requirements.txt
-        cp etc/cowrie.cfg.dist etc/cowrie.cfg
-        sed -i 's/hostname = svr04/hostname = ubuntu2204-prod/' etc/cowrie.cfg
-        sed -i 's/^#listen_port=2222/listen_port=2222/' etc/cowrie.cfg
-        sed -i 's/^#download_limit_size=10485760/download_limit_size=1048576/' etc/cowrie.cfg
-        mkdir -p var/log/cowrie
-    " || {
-        echo "Cowrie 安装失败"
+    # 克隆仓库并设置权限
+    echo "克隆 Cowrie 仓库..."
+    git clone https://github.com/cowrie/cowrie.git "$COWRIE_INSTALL_DIR" || {
+        echo "克隆 Cowrie 仓库失败"
         exit 1
     }
+    
+    chown -R cowrie:cowrie "$COWRIE_INSTALL_DIR"
+
+    # 以 cowrie 用户身份执行安装
+    echo "执行安装..."
+    su - cowrie <<'EOF'
+cd "$COWRIE_INSTALL_DIR"
+python3 -m virtualenv cowrie-env
+source cowrie-env/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+cp etc/cowrie.cfg.dist etc/cowrie.cfg
+sed -i 's/hostname = svr04/hostname = fake-ssh-server/' etc/cowrie.cfg
+sed -i 's/^#listen_port=2222/listen_port=2222/' etc/cowrie.cfg
+sed -i 's/^#download_limit_size=10485760/download_limit_size=1048576/' etc/cowrie.cfg
+mkdir -p var/log/cowrie
+EOF
 
     # 确保权限正确
     echo "设置权限..."
