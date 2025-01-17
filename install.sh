@@ -503,32 +503,41 @@ if [ "$COWRIE_INSTALLED" = "false" ]; then
         exit 1
     }
 
-    # 设置权限
-    chown -R cowrie:cowrie "$COWRIE_INSTALL_DIR"
-    chmod -R 755 "$COWRIE_INSTALL_DIR"
-
-    # 以 cowrie 用户身份执行安装
-    echo "执行安装..."
-    sudo -u cowrie bash -c "
-        cd $COWRIE_INSTALL_DIR && \
-        python3 -m virtualenv cowrie-env && \
-        source cowrie-env/bin/activate && \
-        python3 -m pip install --upgrade pip && \
-        python3 -m pip install -r requirements.txt && \
-        cp etc/cowrie.cfg.dist etc/cowrie.cfg && \
-        sed -i 's/hostname = svr04/hostname = fake-ssh-server/' etc/cowrie.cfg && \
-        sed -i 's/^#listen_port=2222/listen_port=2222/' etc/cowrie.cfg && \
-        sed -i 's/^#download_limit_size=10485760/download_limit_size=1048576/' etc/cowrie.cfg && \
-        mkdir -p var/log/cowrie
-    " || {
-        echo "Cowrie 安装过程失败"
+    # 先用 root 执行初始化操作
+    echo "初始化 Python 环境..."
+    cd "$COWRIE_INSTALL_DIR"
+    python3 -m virtualenv cowrie-env || {
+        echo "创建虚拟环境失败"
         exit 1
     }
 
-    # 再次确保权限正确
+    # 激活虚拟环境并安装依赖
+    echo "安装依赖..."
+    source cowrie-env/bin/activate
+    pip install --upgrade pip
+    pip install -r requirements.txt || {
+        echo "安装依赖失败"
+        exit 1
+    }
+    deactivate
+
+    # 配置 Cowrie
+    echo "配置 Cowrie..."
+    cp etc/cowrie.cfg.dist etc/cowrie.cfg
+    sed -i 's/hostname = svr04/hostname = fake-ssh-server/' etc/cowrie.cfg
+    sed -i 's/^#listen_port=2222/listen_port=2222/' etc/cowrie.cfg
+    sed -i 's/^#download_limit_size=10485760/download_limit_size=1048576/' etc/cowrie.cfg
+    
+    # 创建日志目录
+    mkdir -p var/log/cowrie
+
+    # 最后设置权限
+    echo "设置权限..."
     chown -R cowrie:cowrie "$COWRIE_INSTALL_DIR"
     chmod -R 755 "$COWRIE_INSTALL_DIR"
     chmod 700 "$COWRIE_INSTALL_DIR/var/log/cowrie"
+
+    echo "Cowrie 基础安装完成"
 fi
 
 # 配置 Cowrie 服务
