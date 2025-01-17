@@ -482,10 +482,10 @@ fi
 if [ "$COWRIE_INSTALLED" = "false" ]; then
     echo "开始安装 Cowrie..."
     
-    # 创建 Cowrie 用户
+    # 创建 Cowrie 用户和主目录
     echo "创建 Cowrie 用户..."
     if ! id cowrie &>/dev/null; then
-        useradd -r -s /bin/bash cowrie || {
+        useradd -m -s /bin/bash cowrie || {
             echo "创建 cowrie 用户失败"
             exit 1
         }
@@ -495,34 +495,37 @@ if [ "$COWRIE_INSTALLED" = "false" ]; then
     echo "准备安装目录..."
     rm -rf "$COWRIE_INSTALL_DIR"
     mkdir -p "$COWRIE_INSTALL_DIR"
-    chown cowrie:cowrie "$COWRIE_INSTALL_DIR"
-
-    # 克隆仓库并设置权限
+    
+    # 克隆仓库
     echo "克隆 Cowrie 仓库..."
     git clone https://github.com/cowrie/cowrie.git "$COWRIE_INSTALL_DIR" || {
         echo "克隆 Cowrie 仓库失败"
         exit 1
     }
-    
+
+    # 设置权限
     chown -R cowrie:cowrie "$COWRIE_INSTALL_DIR"
+    chmod -R 755 "$COWRIE_INSTALL_DIR"
 
     # 以 cowrie 用户身份执行安装
     echo "执行安装..."
-    su - cowrie <<'EOF'
-cd "$COWRIE_INSTALL_DIR"
-python3 -m virtualenv cowrie-env
-source cowrie-env/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
-cp etc/cowrie.cfg.dist etc/cowrie.cfg
-sed -i 's/hostname = svr04/hostname = fake-ssh-server/' etc/cowrie.cfg
-sed -i 's/^#listen_port=2222/listen_port=2222/' etc/cowrie.cfg
-sed -i 's/^#download_limit_size=10485760/download_limit_size=1048576/' etc/cowrie.cfg
-mkdir -p var/log/cowrie
-EOF
+    sudo -u cowrie bash -c "
+        cd $COWRIE_INSTALL_DIR && \
+        python3 -m virtualenv cowrie-env && \
+        source cowrie-env/bin/activate && \
+        python3 -m pip install --upgrade pip && \
+        python3 -m pip install -r requirements.txt && \
+        cp etc/cowrie.cfg.dist etc/cowrie.cfg && \
+        sed -i 's/hostname = svr04/hostname = fake-ssh-server/' etc/cowrie.cfg && \
+        sed -i 's/^#listen_port=2222/listen_port=2222/' etc/cowrie.cfg && \
+        sed -i 's/^#download_limit_size=10485760/download_limit_size=1048576/' etc/cowrie.cfg && \
+        mkdir -p var/log/cowrie
+    " || {
+        echo "Cowrie 安装过程失败"
+        exit 1
+    }
 
-    # 确保权限正确
-    echo "设置权限..."
+    # 再次确保权限正确
     chown -R cowrie:cowrie "$COWRIE_INSTALL_DIR"
     chmod -R 755 "$COWRIE_INSTALL_DIR"
     chmod 700 "$COWRIE_INSTALL_DIR/var/log/cowrie"
