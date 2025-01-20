@@ -1,6 +1,6 @@
 # CyberSentry
 
-** This project is supported by YxVM. ** 
+**This project is supported by YxVM.** 
 
 [简体中文](./README.md) | English
 
