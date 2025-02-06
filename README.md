@@ -232,18 +232,4 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-## 贡献指南
 
-欢迎通过以下方式贡献：
-- 提交 Issue
-- 提交 Pull Request
-- 完善文档
-- 分享使用经验
-
-## 问题反馈
-
-如遇问题，请提供以下信息：
-1. 系统版本
-2. Python 版本
-3. 错误信息
-4. 相关日志
