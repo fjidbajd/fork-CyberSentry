@@ -1,5 +1,5 @@
 # CyberSentry
-**本项目由 [YxVM](https://yxvm.com/) 赞助支持, 非常感谢**
+
 
 [English](./README_EN.md) | 简体中文
 
